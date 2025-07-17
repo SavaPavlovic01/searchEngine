@@ -1,4 +1,4 @@
-package main
+package crawler
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func processPage(urll string) {
+func ProcessPage(urll string) {
 	resp, err := http.Get(urll)
 	if err != nil {
 		return
@@ -95,8 +95,4 @@ func parseLinks(n *html.Node, base *url.URL) ([]string, []string) {
 	}
 	visit(n)
 	return links, images
-}
-
-func main() {
-	processPage("https://www.wikipedia.org/")
 }
