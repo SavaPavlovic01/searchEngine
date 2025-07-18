@@ -23,6 +23,36 @@ var scriptNames = map[ScriptId]string{
 	checkAndPushBatch:  "checkAndPushBatch",
 }
 
+type Script struct {
+	id  ScriptId
+	sha string
+}
+
+func (s *Script) load(ctx context.Context, client *redis.Client) error {
+	scriptContent, err := os.ReadFile(getScriptPath(s.id))
+	if err != nil {
+		return err
+	}
+	sha, err := client.ScriptLoad(ctx, string(scriptContent)).Result()
+	if err != nil {
+		return nil
+	}
+	s.sha = sha
+	return nil
+}
+
+func (s *Script) exec(ctx context.Context, client *redis.Client, keys []string, args ...interface{}) (interface{}, error) {
+	res, err := client.EvalSha(ctx, s.sha, keys, args...).Result()
+	if err != nil && strings.Contains(err.Error(), "NOSCRIPT") {
+		err = s.load(ctx, client)
+		if err != nil {
+			return res, err
+		}
+		res, err = client.EvalSha(ctx, s.sha, keys, args...).Result()
+	}
+	return res, err
+}
+
 func (s ScriptId) String() string {
 	if name, ok := scriptNames[s]; ok {
 		return name
@@ -39,7 +69,7 @@ type UrlQueue interface {
 type RedisQueue struct {
 	client  *redis.Client
 	ctx     context.Context
-	scripts map[ScriptId]string
+	scripts map[ScriptId]*Script
 }
 
 func NewRedisQueue(addr string, password string, db int, protocol int) *RedisQueue {
@@ -50,7 +80,7 @@ func NewRedisQueue(addr string, password string, db int, protocol int) *RedisQue
 		Protocol: protocol,
 	})
 	ctx := context.Background()
-	return &RedisQueue{client: client, ctx: ctx, scripts: map[ScriptId]string{}}
+	return &RedisQueue{client: client, ctx: ctx, scripts: map[ScriptId]*Script{}}
 }
 
 func getScriptPath(id ScriptId) string {
@@ -58,38 +88,18 @@ func getScriptPath(id ScriptId) string {
 }
 
 func (rq *RedisQueue) loadScript(id ScriptId) error {
-	scriptContent, err := os.ReadFile(getScriptPath(id))
-	if err != nil {
-		return err
-	}
-	sha, err := rq.client.ScriptLoad(rq.ctx, string(scriptContent)).Result()
-	if err != nil {
-		return nil
-	}
-	rq.scripts[id] = sha
-	return nil
+	script := &Script{id: id}
+	rq.scripts[id] = script
+	return script.load(rq.ctx, rq.client)
 }
 
 func (rq *RedisQueue) runScript(id ScriptId, keys []string, args ...interface{}) (interface{}, error) {
-	res, err := rq.client.EvalSha(rq.ctx, rq.scripts[id], keys, args...).Result()
-	if err != nil && strings.Contains(err.Error(), "NOSCRIPT") {
-		err = rq.loadScript(id)
-		if err != nil {
-			return res, err
-		}
-		res, err = rq.client.EvalSha(rq.ctx, rq.scripts[id], keys, args).Result()
+	script, ok := rq.scripts[id]
+	if !ok {
+		rq.loadScript(id)
+		script = rq.scripts[id]
 	}
-	return res, err
-}
-
-func (rq *RedisQueue) loadAndRunScript(path string, keys []string, args ...interface{}) (interface{}, error) {
-	scriptContent, err := os.ReadFile(path)
-	if err != nil {
-		return false, err
-	}
-
-	script := redis.NewScript(string(scriptContent))
-	return script.Run(rq.ctx, rq.client, keys, args).Result()
+	return script.exec(rq.ctx, rq.client, keys, args)
 }
 
 func (rq *RedisQueue) Enque(url string) (bool, error) {

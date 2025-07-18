@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -9,29 +8,23 @@ import (
 	"golang.org/x/net/html"
 )
 
-func ProcessPage(urll string) {
+func ProcessPage(urll string) (string, []string, []string, error) {
 	resp, err := http.Get(urll)
 	if err != nil {
-		return
+		return "", nil, nil, err
 	}
 	defer resp.Body.Close()
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
-		return
+		return "", nil, nil, err
 	}
-	fmt.Print(parseText(doc))
+	text := parseText(doc)
 	base, err := url.Parse(urll)
 	if err != nil {
-		return
+		return "", nil, nil, err
 	}
 	links, images := parseLinks(doc, base)
-	for _, link := range links {
-		fmt.Println(link)
-	}
-
-	for _, image := range images {
-		fmt.Println(image)
-	}
+	return text, links, images, nil
 }
 
 func parseText(doc *html.Node) string {

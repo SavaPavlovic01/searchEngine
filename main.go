@@ -6,26 +6,20 @@ import (
 )
 
 func main() {
+	url := "https://www.wikipedia.org/"
+	q := crawler.NewRedisIndexQueue("localhost:6379", "", 0, 2)
+	text, links, images, err := crawler.ProcessPage(url)
+	if err != nil {
+		panic(err)
+	}
+	err = q.Enque(crawler.IndexEntry{Url: url, Text: text, Links: links, Images: images})
+	if err != nil {
+		panic(err)
+	}
+	data, err := q.GetEntries(1)
+	if err != nil {
+		panic(err)
+	}
 
-	queue := crawler.NewRedisQueue("localhost:6379", "", 0, 2)
-	val, err := queue.Enque("someText")
-	if err != nil {
-		panic(err)
-	}
-	if !val {
-		fmt.Println(val)
-	}
-	val, err = queue.EnqueMultiple([]string{"someText", "someText1", "someText2", "someText3"})
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(val)
-	res, err := queue.GetUrls(4)
-	if err != nil {
-		panic(err)
-	}
-	for _, s := range res {
-		fmt.Println(s)
-	}
-	fmt.Println("done")
+	fmt.Println(data[0].Text)
 }
