@@ -1,28 +1,31 @@
 package main
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/redis/go-redis/v9"
+	"searchEngine/crawler"
 )
 
 func main() {
-	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
-		Password: "", // No password set
-		DB:       0,  // Use default DB
-		Protocol: 2,  // Connection protocol
-	})
-	ctx := context.Background()
-	err := client.Set(ctx, "someKey", "some Value", 0).Err()
+
+	queue := crawler.NewRedisQueue("localhost:6379", "", 0, 2)
+	val, err := queue.Enque("someText")
 	if err != nil {
 		panic(err)
 	}
-	val, err := client.Get(ctx, "someKey").Result()
+	if !val {
+		fmt.Println(val)
+	}
+	val, err = queue.EnqueMultiple([]string{"someText", "someText1", "someText2", "someText3"})
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(val)
-	//crawler.ProcessPage("https://www.wikipedia.org/")
+	res, err := queue.GetUrls(4)
+	if err != nil {
+		panic(err)
+	}
+	for _, s := range res {
+		fmt.Println(s)
+	}
+	fmt.Println("done")
 }

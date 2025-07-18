@@ -42,7 +42,7 @@ type RedisQueue struct {
 	scripts map[ScriptId]string
 }
 
-func newRedisQueue(addr string, password string, db int, protocol int) *RedisQueue {
+func NewRedisQueue(addr string, password string, db int, protocol int) *RedisQueue {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -50,11 +50,11 @@ func newRedisQueue(addr string, password string, db int, protocol int) *RedisQue
 		Protocol: protocol,
 	})
 	ctx := context.Background()
-	return &RedisQueue{client: client, ctx: ctx}
+	return &RedisQueue{client: client, ctx: ctx, scripts: map[ScriptId]string{}}
 }
 
 func getScriptPath(id ScriptId) string {
-	return strings.Join([]string{"../redisScripts/", id.String(), ".lua"}, "")
+	return strings.Join([]string{"redisScripts/", id.String(), ".lua"}, "")
 }
 
 func (rq *RedisQueue) loadScript(id ScriptId) error {
@@ -98,16 +98,20 @@ func (rq *RedisQueue) Enque(url string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return val.(int) > 0, nil
+	return val.(int64) > 0, nil
 }
 
 func (rq *RedisQueue) EnqueMultiple(url []string) (bool, error) {
 	keys := []string{"visited", "crawlQueue"}
-	val, err := rq.runScript(checkAndPushBatch, keys, url)
+	test := make([]interface{}, len(url))
+	for i, s := range url {
+		test[i] = s
+	}
+	val, err := rq.runScript(checkAndPushBatch, keys, test...)
 	if err != nil {
 		return false, err
 	}
-	return val.(int) > 0, nil
+	return val.(int64) > 0, nil
 }
 
 func (rq *RedisQueue) GetUrls(urlCount int) ([]string, error) {
@@ -116,5 +120,10 @@ func (rq *RedisQueue) GetUrls(urlCount int) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return val.([]string), err
+	valSlice := val.([]interface{})
+	out := make([]string, len(valSlice))
+	for i, v := range valSlice {
+		out[i] = v.(string)
+	}
+	return out, err
 }
