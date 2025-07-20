@@ -1,0 +1,21 @@
+try using postgres builtin full text search engine and compare to the one you build
+that would look like this:
+    you would have the unaltered text of a document in the db, content TEXT field,
+    and also a content_vector TSVECTOR field
+    
+    UPDATE documents
+    SET content_vector = to_tsvector('english', content);
+
+    then you would need to make a reverse index, or a GIN (general reverse index)
+
+    CREATE INDEX idx_content_vector ON documents USING GIN(content_vector);
+
+    to search:
+    SELECT id, url, content
+    FROM documents
+    WHERE content_vector @@ plainto_tsquery('english', 'llvm')
+    ORDER BY ts_rank(content_vector, plainto_tsquery('english', 'llvm')) DESC
+    LIMIT 10;
+
+    there are more commands than plainto_tsquery, maybe look into it
+    you can also do some dumb stuff like highlight the text.

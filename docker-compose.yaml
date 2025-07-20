@@ -7,6 +7,28 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
+  
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: adimn
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: searchEngine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+    
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
 
 volumes:
   redis-data:
+  postgres-data:
+
