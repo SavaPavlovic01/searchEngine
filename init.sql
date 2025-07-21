@@ -6,17 +6,12 @@ CREATE TABLE IF NOT EXISTS documents (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS terms (
-    id SERIAL PRIMARY KEY,
-    term TEXT UNIQUE NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS inverted_index (
-    term_id INTEGER NOT NULL REFERENCES terms(id),
-    document_id INTEGER NOT NULL REFERENCES documents(id),
+    term TEXT UNIQUE NOT NULL,
+    document_url TEXT NOT NULL REFERENCES documents(url),
     tf INTEGER NOT NULL,
     positions INTEGER[] DEFAULT '{}',
-    PRIMARY KEY (term_id, document_id)
+    PRIMARY KEY (term, document_url)
 );
 
 CREATE TABLE IF NOT EXISTS links (
