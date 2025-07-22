@@ -1,12 +1,15 @@
 package crawler
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/reiver/go-porterstemmer"
 )
 
@@ -19,6 +22,47 @@ type Posting struct {
 }
 
 type ReverseIndex map[string]map[string]*Posting
+
+// TODO: maybe make it like this while you are building the reverse index
+// so you dont have to run through the date twice
+func (ri ReverseIndex) dump() [][]interface{} {
+	var rows [][]interface{}
+	for term, doc := range ri {
+		for docName, posting := range doc {
+			rows = append(rows, []interface{}{term, docName, posting.tf})
+		}
+	}
+	return rows
+}
+
+// TODO: quick and dirty, maybe furhter apstract db
+func getDBConection() (*pgxpool.Pool, context.Context, error) {
+	ctx := context.Background()
+	dbPool, err := pgxpool.New(ctx, "postgresql://adimn:admin@localhost:5432/searchEngine")
+	if err != nil {
+		return nil, nil, err
+	}
+	return dbPool, ctx, err
+}
+
+func writeReverseIndexToDB(db *pgxpool.Pool, ctx context.Context, index ReverseIndex) error {
+	_, err := db.CopyFrom(ctx,
+		pgx.Identifier{"inverted_index"},
+		[]string{"term", "document_url", "tf"},
+		pgx.CopyFromRows(index.dump()))
+	return err
+}
+
+func writeDocsToDB(db *pgxpool.Pool, ctx context.Context, docs []IndexEntry) error {
+	_, err := db.CopyFrom(ctx,
+		pgx.Identifier{"documents"},
+		[]string{"url", "title", "content"},
+		pgx.CopyFromSlice(len(docs), func(i int) ([]any, error) {
+			return []any{docs[i].Url, "", docs[i].Text}, nil
+		}),
+	)
+	return err
+}
 
 func clean(s string) string {
 	var builder strings.Builder
@@ -73,6 +117,10 @@ func mergeIndex(dest ReverseIndex, src ReverseIndex) {
 func IndexMain() {
 	n := 5
 	q := NewRedisIndexQueue("localhost:6379", "", 0, 2)
+	db, ctx, err := getDBConection()
+	if err != nil {
+		panic(err)
+	}
 	sleepTime := 1
 	for {
 		data, err := q.GetEntries(n)
@@ -83,6 +131,18 @@ func IndexMain() {
 			continue
 		}
 		sleepTime = 1
+		var dbWait sync.WaitGroup
+		dbWait.Add(1)
+		go func() {
+			err = writeDocsToDB(db, ctx, data)
+			if err != nil {
+				fmt.Println(err.Error())
+			} else {
+				fmt.Println("DOCS WRITE IS GOOD ")
+			}
+
+			dbWait.Done()
+		}()
 		var wg sync.WaitGroup
 		partialReverseIndecies := make(chan map[string]map[string]*Posting, len(data))
 		wg.Add(len(data))
@@ -102,7 +162,10 @@ func IndexMain() {
 		for cur := range partialReverseIndecies {
 			mergeIndex(globalIndex, cur)
 		}
-		fmt.Println(globalIndex)
-		fmt.Println("done with everything")
+		dbWait.Wait()
+		err = writeReverseIndexToDB(db, ctx, globalIndex)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
