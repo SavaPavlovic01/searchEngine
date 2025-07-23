@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS inverted_index (
 );
 
 CREATE TABLE IF NOT EXISTS links (
-    from_doc INTEGER NOT NULL REFERENCES documents(id),
-    to_doc INTEGER NOT NULL REFERENCES documents(id),
+    from_doc TEXT NOT NULL,
+    to_doc TEXT NOT NULL, 
     PRIMARY KEY (from_doc, to_doc)
 );
 

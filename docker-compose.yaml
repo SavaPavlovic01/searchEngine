@@ -28,7 +28,19 @@ services:
     ports:
       - 8080:8080
 
+  neo4j:
+    image: neo4j:5
+    restart: always
+    ports:
+      - "7474:7474"  # HTTP Browser UI
+      - "7687:7687"  # Bolt Protocol
+    environment:
+      NEO4J_AUTH: neo4j/testtest123
+    volumes:
+      - neo4j-data:/data
+
 volumes:
   redis-data:
   postgres-data:
+  neo4j-data:
 
