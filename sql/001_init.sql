@@ -20,6 +20,16 @@ CREATE TABLE IF NOT EXISTS links (
     PRIMARY KEY (from_doc, to_doc)
 );
 
+CREATE TABLE tf_idf (
+  document_url TEXT,
+  term TEXT,
+  tf REAL,
+  idf REAL,
+  tf_idf REAL,
+  PRIMARY KEY (document_url, term),
+  FOREIGN KEY (document_url, term) REFERENCES inverted_index (document_url, term)
+);
+
 CREATE INDEX IF NOT EXISTS idx_terms_term ON terms(term);
 CREATE INDEX IF NOT EXISTS idx_inverted_index_term_id ON inverted_index(term_id);
 CREATE INDEX IF NOT EXISTS idx_inverted_index_document_id ON inverted_index(document_id);
