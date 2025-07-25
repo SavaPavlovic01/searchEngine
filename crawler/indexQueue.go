@@ -71,7 +71,11 @@ func (riq *RedisIndexQueue) Enque(entry IndexEntry) error {
 func (riq *RedisIndexQueue) EnqueMultiple(entries []IndexEntry) error {
 	pipe := riq.client.Pipeline()
 	for _, entry := range entries {
-		pipe.RPush(riq.ctx, "indexQueue", entry)
+		data, err := json.Marshal(entry)
+		if err != nil {
+			continue
+		}
+		pipe.RPush(riq.ctx, "indexQueue", data)
 	}
 	_, err := pipe.Exec(riq.ctx)
 	return err
