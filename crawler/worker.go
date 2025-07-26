@@ -94,7 +94,7 @@ func parseLinks(n *html.Node, base *url.URL) ([]string, []string) {
 }
 
 func CrawlerMain() {
-	n := 10
+	n := 100
 	startCorpus := []string{
 		"https://en.wikipedia.org/wiki/Main_Page",
 		"https://www.bbc.com",
@@ -111,7 +111,7 @@ func CrawlerMain() {
 	indexQueue := NewRedisIndexQueue("localhost:6379", "", 0, 2)
 	_, err := urlQueue.EnqueMultiple(startCorpus)
 	workerUrlQueues := make([]*RedisQueue, n)
-	testRunLimit := 100
+	testRunLimit := 10000
 	currentRun := 0
 	for i := range n {
 		workerUrlQueues[i] = NewRedisQueue("localhost:6379", "", 0, 2)

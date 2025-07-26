@@ -65,6 +65,25 @@ func writeDocsToDB(db *pgxpool.Pool, ctx context.Context, docs []IndexEntry) err
 	return err
 }
 
+func writeLinksToDB(db *pgxpool.Pool, ctx context.Context, docs []IndexEntry) error {
+	var links []struct{ from, to string }
+	for _, entry := range docs {
+		for _, l := range entry.Links {
+			links = append(links, struct {
+				from string
+				to   string
+			}{from: entry.Url, to: l})
+		}
+	}
+	_, err := db.CopyFrom(ctx,
+		pgx.Identifier{"links"},
+		[]string{"from", "to"},
+		pgx.CopyFromSlice(len(links), func(i int) ([]any, error) {
+			return []any{links[i].from, links[i].to}, nil
+		}))
+	return err
+}
+
 func clean(s string) string {
 	var builder strings.Builder
 	for _, r := range s {
@@ -92,8 +111,6 @@ func Index(entry IndexEntry) ReverseIndex {
 		}
 		reverseIndex[stem][entry.Url].tf += 1
 	}
-	fmt.Println("done with indexing")
-	fmt.Println(reverseIndex)
 	return reverseIndex
 }
 
@@ -149,7 +166,7 @@ func writeLinksToNeo(session neo4j.SessionWithContext, ctx context.Context, data
 // TODO: should prob panic if i sleep to much
 // clean this up
 func IndexMain() {
-	n := 5
+	n := 50
 	q := NewRedisIndexQueue("localhost:6379", "", 0, 2)
 	db, ctx, err := getDBConection()
 	if err != nil {
@@ -177,21 +194,21 @@ func IndexMain() {
 			err = writeDocsToDB(db, ctx, data)
 			if err != nil {
 				fmt.Println(err.Error())
-			} else {
-				fmt.Println("DOCS WRITE IS GOOD ")
 			}
-
+			fmt.Println("Done writing batch to db")
 			dbWait.Done()
 		}()
 
+		// NEO4J WRITE IS REALLY SLOW!!!!!!!!!
 		dbWait.Add(1)
 		go func() {
-			neoErr := writeLinksToNeo(neo, neoCtx, data)
+			neoErr := writeLinksToDB(db, ctx, data)
 			if neoErr != nil {
 				fmt.Println("NEO FAILED")
 				fmt.Print(neoErr.Error())
 			}
 			dbWait.Done()
+			fmt.Println("Done writing batch to neo")
 		}()
 
 		var wg sync.WaitGroup
@@ -203,6 +220,7 @@ func IndexMain() {
 				defer wg.Done()
 				cur := Index(curEntry)
 				partialReverseIndecies <- cur
+				fmt.Println("DOne indexing batch for this thread")
 			}()
 		}
 
@@ -218,11 +236,9 @@ func IndexMain() {
 
 		dbWait.Wait()
 		err = writeReverseIndexToDB(db, ctx, globalIndex)
-		if err != nil {
-			panic(err)
-		}
-		neoDrive.Close(neoCtx)
-		neo.Close(neoCtx)
-		db.Close()
+		fmt.Println("Done writing reverse index batch to db")
 	}
+	neoDrive.Close(neoCtx)
+	neo.Close(neoCtx)
+	db.Close()
 }
