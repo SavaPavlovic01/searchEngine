@@ -1,0 +1,5 @@
+flask 
+sqlalchemy 
+nltk
+psycopg2-binary 
+flask-sqlalchemy
