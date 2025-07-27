@@ -3,3 +3,4 @@ sqlalchemy
 nltk
 psycopg2-binary 
 flask-sqlalchemy
+flask-cors
