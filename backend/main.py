@@ -32,16 +32,41 @@ def call_search_with_levenshtein(query_terms, max_distance=2, penalty_factor=0.1
         for row in rows
     ]
 
+def search_with_tsVector(query_terms):
+    sql = text("""
+        SELECT url
+        FROM documents
+        WHERE content_vector @@ plainto_tsquery('english', :query)
+        ORDER BY ts_rank(content_vector, plainto_tsquery('english', :query)) DESC
+        LIMIT 10;
+    """)
+    res = db.session.execute(sql, {
+        "query": query_terms
+    })
+    rows = res.fetchall()
+    return [{"doc_url": row.url} for row in rows]
+
+def searchDB(query, tsvector = False):
+    if tsvector:
+        return search_with_tsVector(query)
+    
+    words = nltk.word_tokenize(query.lower())
+    stemmed_words = [stemmer.stem(w) for w in words]
+
+    return call_search_with_levenshtein(stemmed_words)
+
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
+    useTsVector = True if request.args.get("ts", "false").lower() == "true" else False
     if not query:
         return jsonify({'error': 'Missing query'}), 400
+
 
     words = nltk.word_tokenize(query.lower())
     stemmed_words = [stemmer.stem(w) for w in words]
 
-    results = call_search_with_levenshtein(stemmed_words)
+    results = searchDB(query, useTsVector)
     return jsonify(results)
 
 
