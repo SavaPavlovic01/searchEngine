@@ -62,10 +62,6 @@ def search():
     if not query:
         return jsonify({'error': 'Missing query'}), 400
 
-
-    words = nltk.word_tokenize(query.lower())
-    stemmed_words = [stemmer.stem(w) for w in words]
-
     results = searchDB(query, useTsVector)
     return jsonify(results)
 
