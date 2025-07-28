@@ -84,6 +84,20 @@ func writeLinksToDB(db *pgxpool.Pool, ctx context.Context, docs []IndexEntry) er
 	return err
 }
 
+func writeImagesToDB(db *pgxpool.Pool, ctx context.Context, docs []IndexEntry) error {
+	var images []ImageInfo
+	for _, doc := range docs {
+		images = append(images, doc.Images...)
+	}
+	_, err := db.CopyFrom(ctx,
+		pgx.Identifier{"images"},
+		[]string{"image_url", "document_url", "alt_text", "nearby_text"},
+		pgx.CopyFromSlice(len(docs), func(i int) ([]any, error) {
+			return []any{images[i].URL, images[i].DocumentUrl, images[i].AltText, images[i].NearbyText}, nil
+		}))
+	return err
+}
+
 func clean(s string) string {
 	var builder strings.Builder
 	for _, r := range s {

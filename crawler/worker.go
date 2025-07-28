@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func ProcessPage(urll string) (string, []string, []string, error) {
+func ProcessPage(urll string) (string, []string, []ImageInfo, error) {
 	resp, err := http.Get(urll)
 	if err != nil {
 		return "", nil, nil, err
@@ -50,51 +50,74 @@ func parseText(doc *html.Node) string {
 	return result
 }
 
+type ImageInfo struct {
+	DocumentUrl string `json:"document_url"`
+	AltText     string `json:"alt_text"`
+	URL         string `json:"image_url"`
+	NearbyText  string `json:"nearby_text"`
+}
+
 // TODO: CLEAN UP
-func parseLinks(n *html.Node, base *url.URL) ([]string, []string) {
+func parseLinks(doc *html.Node, base *url.URL) ([]string, []ImageInfo) {
 	var links []string
-	var images []string
+	var images []ImageInfo
+
 	var visit func(*html.Node)
 	visit = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			for _, att := range n.Attr {
-				if att.Key == "href" {
-					href := strings.TrimSpace(att.Val)
-					if href == "" || href == "#" {
-						continue
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "a":
+				for _, att := range n.Attr {
+					if att.Key == "href" {
+						href := strings.TrimSpace(att.Val)
+						if href == "" || href == "#" {
+							continue
+						}
+						u, err := base.Parse(href)
+						if err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+							links = append(links, u.String())
+						}
 					}
-					u, err := base.Parse(href)
+				}
+			case "img":
+				var src, alt string
+				for _, att := range n.Attr {
+					switch att.Key {
+					case "src":
+						src = strings.TrimSpace(att.Val)
+					case "alt":
+						alt = strings.TrimSpace(att.Val)
+					}
+				}
+
+				if src != "" {
+					u, err := base.Parse(src)
 					if err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-						links = append(links, u.String())
+						var nearbyText string
+						if n.Parent != nil {
+							nearbyText = parseText(n.Parent)
+						}
+						images = append(images, ImageInfo{
+							DocumentUrl: base.Host,
+							URL:         u.String(),
+							AltText:     alt,
+							NearbyText:  strings.TrimSpace(nearbyText),
+						})
 					}
 				}
 			}
 		}
 
-		if n.Type == html.ElementNode && n.Data == "img" {
-			for _, att := range n.Attr {
-				if att.Key == "src" {
-					href := strings.TrimSpace(att.Val)
-					if href == "" {
-						continue
-					}
-					u, err := base.Parse(href)
-					if err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-						images = append(images, u.String())
-					}
-				}
-			}
-		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			visit(c)
 		}
 	}
-	visit(n)
+	visit(doc)
 	return links, images
 }
 
 func CrawlerMain() {
-	n := 100
+	n := 10
 	startCorpus := []string{
 		"https://en.wikipedia.org/wiki/Main_Page",
 		"https://www.bbc.com",
@@ -111,7 +134,7 @@ func CrawlerMain() {
 	indexQueue := NewRedisIndexQueue("localhost:6379", "", 0, 2)
 	_, err := urlQueue.EnqueMultiple(startCorpus)
 	workerUrlQueues := make([]*RedisQueue, n)
-	testRunLimit := 10000
+	testRunLimit := 10
 	currentRun := 0
 	for i := range n {
 		workerUrlQueues[i] = NewRedisQueue("localhost:6379", "", 0, 2)

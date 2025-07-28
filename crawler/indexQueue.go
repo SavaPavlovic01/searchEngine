@@ -8,10 +8,10 @@ import (
 )
 
 type IndexEntry struct {
-	Url    string   `json:"url"`
-	Text   string   `json:"text"`
-	Links  []string `json:"outLinks"`
-	Images []string `json:"imageLinks"`
+	Url    string      `json:"url"`
+	Text   string      `json:"text"`
+	Links  []string    `json:"outLinks"`
+	Images []ImageInfo `json:"imageLinks"`
 }
 
 type IndexQueue interface {

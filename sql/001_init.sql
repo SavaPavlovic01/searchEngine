@@ -30,6 +30,12 @@ CREATE TABLE tf_idf (
   FOREIGN KEY (document_url, term) REFERENCES inverted_index (document_url, term)
 );
 
+CREATE TABLE images (
+    image_url TEXT,
+    document_url TEXT,
+    alt_text TEXT
+)
+
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
 
 CREATE INDEX IF NOT EXISTS idx_terms_term ON terms(term);

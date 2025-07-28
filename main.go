@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	crawler.IndexMain()
+	crawler.CrawlerMain()
 }
