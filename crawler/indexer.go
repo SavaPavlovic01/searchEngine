@@ -204,14 +204,14 @@ func IndexMain() {
 		var dbWait sync.WaitGroup
 		//dbWait.Add(1)
 
-		/*go func() {
+		go func() {
 			err = writeDocsToDB(db, ctx, data)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
 			fmt.Println("Done writing batch to db")
 			dbWait.Done()
-		}() */
+		}()
 
 		dbWait.Add(1)
 
@@ -224,7 +224,7 @@ func IndexMain() {
 			fmt.Println("Done writing images to db")
 		}()
 
-		/* // NEO4J WRITE IS REALLY SLOW!!!!!!!!!
+		// NEO4J WRITE IS REALLY SLOW!!!!!!!!!
 		dbWait.Add(1)
 		go func() {
 			neoErr := writeLinksToDB(db, ctx, data)
@@ -261,9 +261,8 @@ func IndexMain() {
 
 		dbWait.Wait()
 		err = writeReverseIndexToDB(db, ctx, globalIndex)
-		fmt.Println("Done writing reverse index batch to db")*/
+		fmt.Println("Done writing reverse index batch to db")
 		dbWait.Done()
-		fmt.Println("DONE WRITING BATCH IMAGES TO DB")
 	}
 	neoDrive.Close(neoCtx)
 	neo.Close(neoCtx)
