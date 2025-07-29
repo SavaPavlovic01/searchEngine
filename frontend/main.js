@@ -3,31 +3,42 @@ function keydown(event) {
         const query = this.value.trim();
         if (!query) return;
 
-        console.log('Searching for:', query);
+        const isImageSearch = document.getElementById('imageToggle').checked;
+        const endpoint = isImageSearch ? 'searchImage' : 'search';
 
-        fetch(`http://localhost:5000/search?q=${encodeURIComponent(query)}&ts=true`)
+        fetch(`http://localhost:5000/${endpoint}?q=${encodeURIComponent(query)}&ts=true`)
             .then(response => {
                 if (!response.ok) throw new Error("Network response was not ok");
                 return response.json();
             })
             .then(data => {
+                console.log(data)
                 const output = document.getElementById('output');
-                output.innerHTML = ''; 
+                output.innerHTML = '';
 
-                if (data.results?.length === 0) {
+                if (!data || data.length === 0) {
                     output.innerHTML = '<p>No results found.</p>';
                     return;
                 }
-                console.log(data)
+
                 data.forEach(result => {
                     const div = document.createElement('div');
                     div.className = 'result';
 
-                    div.innerHTML = `
-                        <h3><a href="${result.doc_url}" target="_blank">${result.title || result.doc_url}</a></h3>
-                        <p class="url">${result.doc_url}</p>
-                        <p>${result.snippet || 'No snippet available.'}...</p>
-                    `;
+                    if (isImageSearch) {
+                        div.innerHTML = `
+                            <a href="${result.doc_url}" target="_blank">
+                              <img src="${result.image_url}" alt="Image result" class="search-image" />
+                            </a>
+                            <p class="url">${result.doc_url}</p>
+                        `;
+                    } else {
+                        div.innerHTML = `
+                            <h3><a href="${result.doc_url}" target="_blank">${result.title || result.doc_url}</a></h3> 
+                            <p class="url">${result.doc_url}</p>
+                            <p>${result.snippet || 'No snippet available.'}</p>
+                        `;
+                    }
 
                     output.appendChild(div);
                 });

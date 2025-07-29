@@ -134,7 +134,7 @@ func CrawlerMain() {
 	indexQueue := NewRedisIndexQueue("localhost:6379", "", 0, 2)
 	_, err := urlQueue.EnqueMultiple(startCorpus)
 	workerUrlQueues := make([]*RedisQueue, n)
-	testRunLimit := 10
+	testRunLimit := 1000
 	currentRun := 0
 	for i := range n {
 		workerUrlQueues[i] = NewRedisQueue("localhost:6379", "", 0, 2)

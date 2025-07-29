@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS documents (
     url TEXT UNIQUE NOT NULL,
     title TEXT,
     content TEXT,
+    content_vector tsvector,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -33,8 +34,11 @@ CREATE TABLE tf_idf (
 CREATE TABLE images (
     image_url TEXT,
     document_url TEXT,
-    alt_text TEXT
-)
+    alt_text TEXT,
+    nearby_text TEXT,
+    image_vector tsvector,
+    PRIMARY KEY (image_url, document_url)
+);
 
 CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
 

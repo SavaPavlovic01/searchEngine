@@ -1,6 +1,6 @@
 CREATE OR REPLACE FUNCTION documents_search_vector_update() RETURNS trigger AS $$
 BEGIN
-  NEW.search_vector := to_tsvector('english', LEFT(NEW.content, 1000000));
+  NEW.content_vector := to_tsvector('english', LEFT(NEW.content, 1000000));
   RETURN NEW;
 END
 $$ LANGUAGE plpgsql;

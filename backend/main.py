@@ -35,6 +35,20 @@ def call_search_with_levenshtein(query_terms, max_distance=2, penalty_factor=0.8
         for row in rows
     ]
 
+def search_image_with_tsVector(query_terms):
+    sql = text("""
+        SELECT image_url, document_url
+        FROM images
+        WHERE image_vector @@ plainto_tsquery('english', :query)
+        ORDER BY ts_rank(image_vector, plainto_tsquery('english', :query)) DESC
+        LIMIT 10;
+    """)
+    res = db.session.execute(sql, {
+        "query": query_terms
+    })
+    rows = res.fetchall()
+    return [{"doc_url": row.document_url, "image_url": row.image_url} for row in rows]
+
 def search_with_tsVector(query_terms):
     sql = text("""
         SELECT url, content
@@ -68,6 +82,10 @@ def search():
     results = searchDB(query, useTsVector)
     return jsonify(results)
 
+@app.route('/searchImage')
+def image():
+    query = request.args.get('q', '')
+    return jsonify(search_image_with_tsVector(query))
 
 if __name__ == '__main__':
     app.run(debug=True)

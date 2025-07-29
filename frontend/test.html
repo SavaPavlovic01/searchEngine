@@ -9,9 +9,17 @@
     <script src='main.js'></script>
 </head>
 <body>
-   <div class="parent">
-        <input type="text" id="search">
-   </div>
-   <pre id="output"></pre>
+    <div id="search-container">
+    <input id="search" placeholder="Search..." />
+    
+    <label class="switch-label">
+        <input type="checkbox" id="imageToggle" />
+        <span class="slider"></span>
+        <span class="label-text">Image search</span>
+    </label>
+    </div>
+
+    <div id="output"></div>
+
 </body>
 </html>
